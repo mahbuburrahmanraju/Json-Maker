@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Movie JSON Generator - Upload File or URL Upload with Auto Increment ID & Descending Sort</title>
+  <style>
+    body { max-width: 650px; margin: 20px auto; font-family: Arial, sans-serif; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, textarea, select, button { width: 100%; padding: 8px; margin-top: 6px; }
+    button { cursor: pointer; }
+    pre { background: #f4f4f4; padding: 15px; margin-top: 20px; max-height: 350px; overflow-y: auto; white-space: pre-wrap; }
+    #upload-status { margin-top: 8px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>Movie JSON Generator with Cloudinary Upload</h1>
+
+<form id="movie-form">
+  <label for="id">Movie ID (number)</label>
+  <input type="number" id="id" min="1" required />
+
+  <label for="name">Movie Name</label>
+  <input type="text" id="name" required />
+
+  <label for="description">Description</label>
+  <textarea id="description" rows="3" required></textarea>
+
+  <label>Poster Input Method</label>
+  <select id="poster-input-method">
+    <option value="url" selected>Paste URL (auto-upload)</option>
+    <option value="upload">Upload File</option>
+  </select>
+
+  <div id="poster-url-input">
+    <label for="poster-url">Poster URL</label>
+    <input type="url" id="poster-url" placeholder="Paste image URL here" />
+    <p id="upload-status-url" style="color: green;"></p>
+  </div>
+
+  <div id="poster-upload-input" style="display:none;">
+    <label for="poster-upload">Upload Poster Image</label>
+    <input type="file" id="poster-upload" accept="image/*" />
+    <p id="upload-status-upload" style="color: green;"></p>
+  </div>
+
+  <label for="download480">Download Link 480p</label>
+  <input type="url" id="download480" required />
+
+  <label for="download720">Download Link 720p</label>
+  <input type="url" id="download720" required />
+
+  <label for="download1080">Download Link 1080p</label>
+  <input type="url" id="download1080" required />
+
+  <button type="submit" id="generate-btn">Add Movie to JSON</button>
+</form>
+
+<h2>Generated JSON</h2>
+<pre id="json-output">[]</pre>
+<button id="copy-btn">Copy JSON</button>
+
+<script>
+  const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dsitssamd/upload';
+  const UPLOAD_PRESET = 'MovieFlix';
+
+  const form = document.getElementById('movie-form');
+  const output = document.getElementById('json-output');
+  const copyBtn = document.getElementById('copy-btn');
+
+  const posterInputMethod = document.getElementById('poster-input-method');
+  const posterUrlInputDiv = document.getElementById('poster-url-input');
+  const posterUploadInputDiv = document.getElementById('poster-upload-input');
+
+  const posterUrlInput = document.getElementById('poster-url');
+  const posterUploadInput = document.getElementById('poster-upload');
+
+  const uploadStatusUrl = document.getElementById('upload-status-url');
+  const uploadStatusUpload = document.getElementById('upload-status-upload');
+
+  let movies = [];
+
+  // Initialize ID with 1 on load
+  form.id.value = 1;
+
+  // Switch UI based on poster input method
+  posterInputMethod.addEventListener('change', () => {
+    const method = posterInputMethod.value;
+    posterUrlInputDiv.style.display = (method === 'url') ? 'block' : 'none';
+    posterUploadInputDiv.style.display = (method === 'upload') ? 'block' : 'none';
+
+    uploadStatusUrl.textContent = '';
+    uploadStatusUpload.textContent = '';
+    posterUrlInput.value = '';
+    posterUploadInput.value = null;
+  });
+
+  // Auto-upload if user pastes URL and leaves the input (change event)
+  posterUrlInput.addEventListener('change', async () => {
+    const url = posterUrlInput.value.trim();
+    if (!url) return;
+
+    posterUrlInput.disabled = true;
+    uploadStatusUrl.style.color = 'blue';
+    uploadStatusUrl.textContent = 'Uploading image from URL...';
+
+    const formData = new FormData();
+    formData.append('file', url);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.secure_url) {
+        posterUrlInput.value = data.secure_url;
+        uploadStatusUrl.style.color = 'green';
+        uploadStatusUrl.textContent = 'Upload from URL successful!';
+      } else {
+        uploadStatusUrl.style.color = 'red';
+        uploadStatusUrl.textContent = 'Upload failed, check console.';
+        console.error('Upload error:', data);
+      }
+    } catch (err) {
+      uploadStatusUrl.style.color = 'red';
+      uploadStatusUrl.textContent = 'Upload error: ' + err.message;
+      console.error(err);
+    } finally {
+      posterUrlInput.disabled = false;
+    }
+  });
+
+  // Upload local file to Cloudinary
+  posterUploadInput.addEventListener('change', async () => {
+    const file = posterUploadInput.files[0];
+    if (!file) return;
+
+    posterUploadInput.disabled = true;
+    uploadStatusUpload.style.color = 'blue';
+    uploadStatusUpload.textContent = 'Uploading local file...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.secure_url) {
+        // Also update the URL input with the uploaded image URL for convenience
+        posterUrlInput.value = data.secure_url;
+        uploadStatusUpload.style.color = 'green';
+        uploadStatusUpload.textContent = 'Local upload successful!';
+      } else {
+        uploadStatusUpload.style.color = 'red';
+        uploadStatusUpload.textContent = 'Upload failed, check console.';
+        console.error('Upload error:', data);
+      }
+    } catch (err) {
+      uploadStatusUpload.style.color = 'red';
+      uploadStatusUpload.textContent = 'Upload error: ' + err.message;
+      console.error(err);
+    } finally {
+      posterUploadInput.disabled = false;
+    }
+  });
+
+  // Form submit - add movie to array and show JSON
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+
+    const newId = parseInt(form.id.value.trim(), 10);
+    if (movies.some(m => m.id === newId)) {
+      alert('This ID already exists. Please enter a unique ID.');
+      return;
+    }
+
+    let posterUrl = posterUrlInput.value.trim();
+    if (!posterUrl) {
+      alert('Please provide a poster URL either by pasting URL or uploading a file.');
+      return;
+    }
+
+    const movie = {
+      id: newId,
+      name: form.name.value.trim(),
+      description: form.description.value.trim(),
+      poster: posterUrl,
+      download_links: {
+        "480p": form.download480.value.trim(),
+        "720p": form.download720.value.trim(),
+        "1080p": form.download1080.value.trim()
+      }
+    };
+
+    movies.push(movie);
+
+    // Sort movies descending by id
+    movies.sort((a, b) => b.id - a.id);
+
+    output.textContent = JSON.stringify(movies, null, 2);
+
+    form.reset();
+    posterUrlInput.value = '';
+    uploadStatusUrl.textContent = '';
+    uploadStatusUpload.textContent = '';
+    posterInputMethod.value = 'url';
+    posterUrlInputDiv.style.display = 'block';
+    posterUploadInputDiv.style.display = 'none';
+
+    // Auto set next ID based on max id in array
+    const maxId = movies.reduce((max, m) => m.id > max ? m.id : max, 0);
+    form.id.value = maxId + 1;
+
+    form.id.focus();
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(output.textContent).then(() => {
+      alert('JSON copied to clipboard!');
+    }).catch(err => {
+      alert('Failed to copy: ' + err);
+    });
+  });
+</script>
+
+</body>
+</html>
