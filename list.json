@@ -1,0 +1,17 @@
+[
+  {
+    "title": "My First Video",
+    "img": "https://example.com/thumb1.jpg",
+    "video": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+  },
+  {
+    "title": "My Second Video",
+    "img": "https://example.com/thumb2.jpg",
+    "video": "https://www.youtube.com/embed/ScMzIvxBSi4"
+  },
+  {
+    "title": "My Third Video",
+    "img": "https://example.com/thumb3.jpg",
+    "video": "https://www.youtube.com/embed/tgbNymZ7vqY"
+  }
+]
